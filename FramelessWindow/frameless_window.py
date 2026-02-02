@@ -1,3 +1,11 @@
+"""
+Custom Frameless Window, Titlebar & Dialog
+
+Based upon PySide6 in Python.
+
+v0.1.0
+"""
+
 from PySide6.QtCore import Qt, Signal, QEventLoop, QPoint, QSize
 from PySide6.QtGui import QCloseEvent, QKeyEvent, QPixmap, QIcon
 from PySide6.QtWidgets import (
