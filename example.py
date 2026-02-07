@@ -9,7 +9,7 @@ class MyWindow(FramelessWindow):
         app_name = "Example"
         app_icon = None
 
-        super().__init__(app_name=app_name, app_icon=app_icon)
+        super().__init__(app_name=app_name, app_icon=app_icon, rnd_crn=True, rnd_crn_rad=20)
         self.setStyleSheet("background: #1c1c1c;")
         self.resize(1100, 700)
 

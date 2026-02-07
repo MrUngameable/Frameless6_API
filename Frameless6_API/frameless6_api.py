@@ -3,11 +3,11 @@ Custom Frameless Window, Titlebar & Dialog
 
 Based upon PySide6 in Python.
 
-v0.1.0
+v0.1.1
 """
 
 from PySide6.QtCore import Qt, Signal, QEventLoop, QPoint, QSize
-from PySide6.QtGui import QCloseEvent, QKeyEvent, QPixmap, QIcon
+from PySide6.QtGui import QCloseEvent, QKeyEvent, QPixmap, QIcon, QPainterPath, QRegion
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -23,7 +23,7 @@ import sys
 import ctypes
 
 
-RESIZE_MARGIN = 8
+RESIZE_MARGIN = 6
 
 
 class FramelessWindow(QMainWindow):
@@ -35,9 +35,11 @@ class FramelessWindow(QMainWindow):
     closeRequested = Signal()
 
     def __init__(
-            self,
-            app_name: str | None = None,
-            app_icon: QIcon | None = None
+        self,
+        app_name: str | None = None,
+        app_icon: QIcon | None = None,
+        rnd_crn: bool = False,
+        rnd_crn_rad: int = None
     ):
         super().__init__()
 
@@ -55,6 +57,10 @@ class FramelessWindow(QMainWindow):
         # Group windows
         self._apply_windows_app_id()
 
+        # Rounded Corners
+        self._rounded_corners = rnd_crn
+        self._rounded_corners_radius = rnd_crn_rad
+
         self.setObjectName("FramelessWindow")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setMouseTracking(True)
@@ -65,12 +71,18 @@ class FramelessWindow(QMainWindow):
         # Root widget (draws border)
         self._root = QWidget(self)
         self._root.setObjectName("Root")
+
+        self._root.setAttribute(Qt.WA_StyledBackground, True)
+        self._root.setAttribute(Qt.WA_TranslucentBackground, False)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+
         self.setCentralWidget(self._root)
 
         self.setStyleSheet("""
         #Root {
             background-color: #1e1e1e;
             border: 1px solid #525252;
+            border-radius: 14px;
         }
         """)
 
@@ -92,6 +104,12 @@ class FramelessWindow(QMainWindow):
 
     # ---------------- WINDOW LIFECYCLE ---------------- #
 
+    def showEvent(self, event):
+        super().showEvent(event)
+
+        if (not self.isMaximized()) and (self._rounded_corners):
+            self._apply_rounded_corners(self._rounded_corners_radius)
+
     def closeEvent(self, event: QCloseEvent):
         """
         Native-equivalent close event.
@@ -101,6 +119,14 @@ class FramelessWindow(QMainWindow):
         event.accept()  # or event.ignore()
 
     # ---------------- RESIZE HANDLING ---------------- #
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+        if (not self.isMaximized()) and (self._rounded_corners):
+            self._apply_rounded_corners(self._rounded_corners_radius)
+        else:
+            self.clearMask()
 
     def mouseMoveEvent(self, event):
         if self.isMaximized():
@@ -175,6 +201,27 @@ class FramelessWindow(QMainWindow):
         except Exception as e:
             # Fail silently - grouping is a best-effort feature
             pass
+    
+    # ------------------ Rounded Window ------------------ #
+    
+    def _apply_rounded_corners(self, radius):
+        path = QPainterPath()
+        rect = self.rect()
+
+        # If no Rounded Corner value given
+        # Set back to default value
+        if radius == None:
+            radius = 14     # default value of 14
+        
+        # If a value bigger than 50 is given
+        # Set to allowed max value
+        if radius > 50:
+            radius = 50
+
+        path.addRoundedRect(rect, radius, radius)
+
+        region = QRegion(path.toFillPolygon().toPolygon())
+        self.setMask(region)
 
 
 class TitleBar(QWidget):
@@ -199,11 +246,6 @@ class TitleBar(QWidget):
         self.setFixedHeight(self.HEIGHT)
 
         self.setStyleSheet("""
-        #Titlebar {
-            border-top: 1px solid #525252;
-            border-left: 1px solid #525252;
-            border-right: 1px solid #525252;
-        }
 
         #Titlebar QPushButton#CloseButton:hover {
             background: #c42b1c;
